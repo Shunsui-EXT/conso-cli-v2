@@ -25,8 +25,16 @@ echo "[camoufox] installing camoufox + playwright==1.60 ..."
 # Playwright must match the Camoufox browser build; 1.61+ re-downloads and hangs.
 "$PY" -m pip install -q 'playwright==1.60'
 
-echo "[camoufox] fetching the stealth browser (~1.5 GB, one time) ..."
-"$PY" -m camoufox fetch
+# Pin the build too: `camoufox fetch` with no argument installs the LATEST
+# build, which playwright==1.60 cannot drive (every launch re-downloads and
+# hangs). 152.0.4-beta.28 is the build this project is verified against.
+BUILD="official/stable/152.0.4-beta.28"
+if "$PY" -m camoufox active 2>/dev/null | grep -qF '152.0.4-beta.28'; then
+    echo "[camoufox] browser build 152.0.4-beta.28 already active"
+else
+    echo "[camoufox] fetching the pinned stealth browser (~1.3 GB, one time) ..."
+    "$PY" -m camoufox set "$BUILD"
+fi
 
 echo "[camoufox] verifying launch ..."
 "$PY" - <<'PY'

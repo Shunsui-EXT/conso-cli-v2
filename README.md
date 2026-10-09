@@ -89,6 +89,29 @@ Layer map and dependency rules: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Install
 
+**One command sets everything up** — venv, dependencies, the solver, its
+browser, `.env`, and the pre-flight:
+
+```bash
+bash scripts/setup_all.sh
+```
+
+When it finishes, the only command left is `python main.py` (or
+`.venv/bin/python main.py`).
+
+```bash
+bash scripts/setup_all.sh                 # camoufox solver (recommended)
+bash scripts/setup_all.sh --with-cloak    # also install the cloak provider
+bash scripts/setup_all.sh --skip-browser  # deps + config only, no 1.3 GB fetch
+```
+
+It is safe to re-run: every step detects what is already done and skips it.
+The browser build is **pinned** (`152.0.4-beta.28` + `playwright==1.60`)
+because a version mismatch makes Camoufox re-download and hang on launch.
+
+<details>
+<summary>Manual install (what the script does, step by step)</summary>
+
 ```bash
 # 1. Virtual environment
 python3 -m venv .venv
@@ -100,15 +123,18 @@ pip install -r requirements.txt
 # 3. Optional: install the package so `conso ...` works from anywhere
 pip install -e .
 
-# 4. Optional: a captcha backend
-bash scripts/setup_camoufox.sh     # stealth Firefox (production-proven)
-bash scripts/setup_cloak.sh        # in-process cloak port (cloakbrowser)
+# 4. A captcha backend (Camoufox must come before the playwright pin)
+pip install 'camoufox[geoip]>=0.4.0' && pip install playwright==1.60
+python -m camoufox set official/stable/152.0.4-beta.28
+bash scripts/setup_cloak.sh        # optional: in-process cloak port
 
 # 5. Config + pre-flight
 cp .env.example .env
 python main.py doctor
 python main.py test
 ```
+
+</details>
 
 `main.py` inserts `src/` itself, so `python main.py ...` works from a fresh
 clone with no `PYTHONPATH` and no package install. `pip install -e .` is only

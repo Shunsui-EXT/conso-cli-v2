@@ -25,7 +25,7 @@ runner = CliRunner()
 EXPECTED_COMMANDS = {
     "test", "register", "farm", "export", "verify", "solve", "session",
     "earn", "status", "loop", "recover", "doctor", "proxies", "pipeline",
-    "notify", "report",
+    "notify", "report", "backup",
 }
 
 
@@ -48,7 +48,7 @@ def test_help_lists_all_commands():
     assert result.exit_code == 0, result.output
     missing = {c for c in EXPECTED_COMMANDS if c not in _command_names()}
     assert not missing, f"commands not registered: {sorted(missing)}"
-    assert len(EXPECTED_COMMANDS) == 16
+    assert len(EXPECTED_COMMANDS) == 17
 
 
 def test_no_subcommand_prints_help():

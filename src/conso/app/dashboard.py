@@ -52,6 +52,7 @@ from .commands.earning import farm as farm_cmd
 from .commands.earning import loop as loop_cmd
 from .commands.earning import pipeline as pipeline_cmd
 from .commands.earning import report as report_cmd
+from .commands.maintenance import backup as backup_cmd
 from .commands.maintenance import doctor as doctor_cmd
 from .commands.maintenance import notify as notify_cmd
 from .commands.maintenance import proxies as proxies_cmd
@@ -128,7 +129,7 @@ _MENU_SECTIONS: tuple[tuple[str, tuple[tuple[str, str, str, str], ...]], ...] = 
         ("11", "solve captcha", "12", "proxies"),
         ("13", "export store", "14", "report"),
         ("15", "verify proxies", "16", "notify test"),
-        ("17", "pipeline (register -> earn -> loop)", "", ""),
+        ("17", "pipeline (register -> earn -> loop)", "18", "backup store"),
     )),
     ("INFO", (
         ("S", "summary/settings", "Q", "quit"),
@@ -806,6 +807,12 @@ def _act_verify(state: _DashboardState) -> str | None:
     return None
 
 
+def _act_backup(state: _DashboardState) -> str | None:
+    """backup: copy the store aside so a lost data/ dir never costs access."""
+    _call(backup_cmd)
+    return None
+
+
 def _act_notify(state: _DashboardState) -> str | None:
     """notify: send one Telegram test message (network action)."""
     if not _confirm("Send a Telegram test message now? [Y/n]", default=True):
@@ -906,6 +913,7 @@ _MENU: tuple[tuple[str, str, Callable[[_DashboardState], str | None]], ...] = (
     ("15", "verify", _act_verify),
     ("16", "notify", _act_notify),
     ("17", "pipeline", _act_pipeline),
+    ("18", "backup", _act_backup),
     ("s", "summary", _act_summary),
 )
 _MENU_BY_CHOICE = {choice: (label, handler) for choice, label, handler in _MENU}

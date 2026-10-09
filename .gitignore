@@ -4,9 +4,11 @@
 !.env.example
 
 # Data & secrets
+# `backups/` holds timestamped copies of `data/` — same credentials, same rules.
 data/
 logs/
 output/
+backups/
 *.db
 *.sqlite
 *.sqlite3

@@ -49,6 +49,7 @@ def register(app: typer.Typer) -> None:
     app.command()(solve)
     app.command()(verify)
     app.command()(proxies)
+    app.command()(backup)
     app.command(name="notify")(notify)
 
 
@@ -296,3 +297,50 @@ def notify() -> None:
     tg_notify("CONSO TEST", [("status", "ok"), ("time", time.strftime("%Y-%m-%d %H:%M:%S"))],
               logger=_log)
     ui.log("notify: sent (check your Telegram)", level="ok")
+
+
+def backup(
+    keep: int = typer.Option(20, help="How many timestamped backups to keep."),
+) -> None:
+    """Copy the account store aside, so a lost data/ dir never costs access.
+
+    The store holds the rotated refresh tokens: losing it means falling back to
+    the OTP path for every account, and the password is not recoverable at all.
+    Copies land in ``backups/`` (gitignored — they hold the same credentials).
+    """
+    import shutil
+    from pathlib import Path
+
+    settings = Settings.from_env()
+    data_dir = Path(settings.data_dir)
+    if not data_dir.is_dir():
+        ui.error(f"backup: no {data_dir}/ directory yet — nothing to copy")
+        raise typer.Exit(1)
+
+    sources = [p for p in sorted(data_dir.iterdir()) if p.is_file()]
+    if not sources:
+        ui.error(f"backup: {data_dir}/ is empty — nothing to copy")
+        raise typer.Exit(1)
+
+    out_dir = Path("backups")
+    out_dir.mkdir(exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    copied = 0
+    for src in sources:
+        shutil.copy2(src, out_dir / f"{src.stem}-{stamp}{src.suffix}")
+        copied += 1
+
+    # Prune oldest per family so the dir cannot grow without bound. The family
+    # key keeps the extension: `accounts.json` and `accounts.csv` are different
+    # files, and grouping them by stem alone would prune one of each pair away.
+    # `keep` counts copies of the SAME file, which is what an operator expects.
+    pruned = 0
+    families = {f"{p.stem}-*{p.suffix}" for p in sources}
+    for pattern in families:
+        family = sorted(out_dir.glob(pattern), key=lambda p: p.stat().st_mtime)
+        for old in family[:-keep] if keep > 0 else []:
+            old.unlink()
+            pruned += 1
+
+    ui.log(f"backup: {copied} file(s) -> {out_dir}/ ({stamp})"
+           + (f", pruned {pruned} old" if pruned else ""), level="ok")

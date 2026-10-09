@@ -439,8 +439,8 @@ def test_solve_accepts_overrides(tmp_path, monkeypatch):
     assert calls == [{"sitekey": "0xSITEKEY", "url": "https://x.invalid/p"}]
 
 
-def test_menu_lists_all_seventeen_entries_plus_shortcuts(tmp_path, monkeypatch):
-    """The rendered panel must offer every command (1-17) plus S and Q."""
+def test_menu_lists_all_eighteen_entries_plus_shortcuts(tmp_path, monkeypatch):
+    """The rendered panel must offer every command (1-18) plus S and Q."""
     _use_tmp_store(tmp_path, monkeypatch)
     state = dashboard._DashboardState(settings=dashboard.Settings.from_env(),
                                       store=Store(str(tmp_path)))
@@ -448,13 +448,14 @@ def test_menu_lists_all_seventeen_entries_plus_shortcuts(tmp_path, monkeypatch):
     # Every numeric choice is dispatched...
     for key, _label, _handler in dashboard._MENU:
         assert key in dashboard._MENU_BY_CHOICE
-    assert {k for k, _, _ in dashboard._MENU} == {str(n) for n in range(1, 18)} | {"s"}
+    assert {k for k, _, _ in dashboard._MENU} == {str(n) for n in range(1, 19)} | {"s"}
     # ...and every numeric choice is visible on the panel as a "N " prefix.
-    for n in range(1, 18):
+    for n in range(1, 19):
         assert f"{n} " in text, f"menu entry {n} missing from the panel"
     assert "summary/settings" in text
     assert "quit" in text
     assert "pipeline" in text and "verify" in text and "notify" in text
+    assert "backup" in text
 
 
 def test_keyboard_interrupt_during_render_exits_zero(tmp_path, monkeypatch):

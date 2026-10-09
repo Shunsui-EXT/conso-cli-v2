@@ -60,6 +60,11 @@ class LoopConfig:
     # ~0.02 zaps, so filling the last fraction costs a dozen requests for
     # nothing. 0 disables the skip.
     min_remaining_zaps: float = 1.0
+    # Snapshot data/ into backups/ when a cycle ends. The cycle ROTATES every
+    # refresh token, so the newest tokens only exist in the store once it
+    # returns: a crash before the next snapshot would strand the accounts on
+    # the OTP path. 0 disables the snapshot.
+    backup_keep: int = 20
 
 
 @dataclass
@@ -213,6 +218,25 @@ class DailyLoop:
             return self._run_records(records, force, result)
         finally:
             emit("BATCH_COMPLETED", status="STOPPED" if self._stop.is_set() else "COMPLETED")
+            self._snapshot()
+
+    def _snapshot(self) -> None:
+        """Copy the store aside once a cycle ends.
+
+        Runs even when the cycle was stopped part-way: the accounts that DID
+        run have already rotated their tokens, so their newest credentials are
+        only in the store — snapshotting now is what keeps them reachable.
+        A failure here must never fail the cycle.
+        """
+        if self.config.backup_keep <= 0:
+            return
+        try:
+            from .backup import snapshot
+
+            snapshot(self.store.data_dir, keep=self.config.backup_keep,
+                     logger=lambda msg: _log(self.logger, msg))
+        except Exception as exc:  # noqa: BLE001 - insurance must not break earning
+            _log(self.logger, f"backup: skipped ({type(exc).__name__}: {exc})")
 
     def _run_records(self, records, force: bool, result: CycleResult) -> CycleResult:
         workers = max(1, self.config.parallel_workers)

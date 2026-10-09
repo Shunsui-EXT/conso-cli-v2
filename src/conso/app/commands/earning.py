@@ -167,6 +167,9 @@ def loop(
     min_remaining: float = typer.Option(
         -1.0, "--min-remaining",
         help="Skip farming an account with less than this daily headroom (0 = off, -1 = .env)."),
+    backup_keep: int = typer.Option(
+        20, "--backup-keep",
+        help="Snapshot data/ into backups/ after the cycle; keep N copies (0 = off)."),
 ) -> None:
     """Run the daily earn cycle (missions + turns) on a schedule."""
     settings = Settings.from_env()
@@ -183,6 +186,7 @@ def loop(
             min_remaining if min_remaining >= 0
             else float(os.environ.get("MIN_REMAINING_ZAPS", "1.0") or 0.0)
         ),
+        backup_keep=backup_keep,
     )
     runner = DailyLoop(settings, store, config=config, solver=solver,
                        verifier=build_verifier(settings), logger=_mirror(_log))

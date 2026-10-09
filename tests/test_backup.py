@@ -1,18 +1,20 @@
 """
-Tests for `conso backup` — the store snapshot that protects account access.
+Tests for store snapshots — the cheap insurance against losing account access.
 
 WHY these exist: the account store holds the rotated refresh tokens. Losing
 ``data/`` costs the ability to log in without a fresh OTP for every account,
-and the password is not recoverable at all. The command is the cheap insurance,
-so the two behaviours that matter are pinned here:
+and the password is not recoverable at all. The snapshot is the cheap
+insurance, so three behaviours are pinned here:
 
-1. every file in ``data/`` is copied, and
+1. every file in ``data/`` is copied,
 2. pruning counts copies of the SAME file — ``accounts.json`` and
-   ``accounts.csv`` are different files and must not evict each other.
+   ``accounts.csv`` are different files and must not evict each other,
+3. the daily loop snapshots on its own once a cycle ends, because that is the
+   moment the newest tokens first exist.
 
-The second one is a regression guard: an earlier version grouped by file stem
-alone, so a single ``--keep 2`` run deleted the ``accounts.json`` copy and left
-only the CSV behind.
+Point 2 is a regression guard: an earlier version grouped by file stem alone,
+so a single ``--keep 2`` run deleted the ``accounts.json`` copy and left only
+the CSV behind.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from conso.app.commands import maintenance  # noqa: E402
 from conso.core.config import Settings  # noqa: E402
+from conso.ops import backup as backup_mod  # noqa: E402
 
 
 @pytest.fixture()
@@ -50,11 +53,13 @@ def _families(root: Path) -> dict[str, int]:
     counts: dict[str, int] = {}
     for path in (root / "backups").iterdir():
         # 'accounts-20261009-205044.json' -> 'accounts.json'
-        stem, _, stamp_and_ext = path.name.partition("-")
-        ext = path.suffix
-        counts[f"{stem}{ext}"] = counts.get(f"{stem}{ext}", 0) + 1
+        stem, _, _rest = path.name.partition("-")
+        key = f"{stem}{path.suffix}"
+        counts[key] = counts.get(key, 0) + 1
     return counts
 
+
+# --- the command ------------------------------------------------------------
 
 def test_backup_copies_every_file(workspace):
     maintenance.backup(keep=20)
@@ -97,6 +102,84 @@ def test_backup_errors_without_data_dir(tmp_path, monkeypatch):
         maintenance.backup(keep=20)
     assert not (tmp_path / "backups").exists()
 
+
+# --- the shared module ------------------------------------------------------
+
+def test_snapshot_reports_counts(workspace):
+    copied, pruned = backup_mod.snapshot(workspace / "data", keep=20)
+    assert copied == 3
+    assert pruned == 0
+
+
+def test_snapshot_raises_on_empty_dir(tmp_path):
+    empty = tmp_path / "data"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        backup_mod.snapshot(empty)
+
+
+def test_snapshot_keep_zero_disables_pruning(workspace):
+    for _ in range(3):
+        backup_mod.snapshot(workspace / "data", keep=0)
+        time.sleep(1.05)
+    assert _families(workspace)["accounts.json"] == 3
+
+
+# --- the loop's automatic hook ----------------------------------------------
+
+class _StubStore:
+    """Minimal store stand-in: the hook only needs its data_dir."""
+
+    def __init__(self, data_dir: Path) -> None:
+        self.data_dir = str(data_dir)
+
+
+def _loop(store, *, keep: int):
+    from conso.ops.scheduler import DailyLoop, LoopConfig
+
+    return DailyLoop.__new__(DailyLoop), LoopConfig(backup_keep=keep)
+
+
+def test_loop_snapshots_after_a_cycle(workspace, monkeypatch):
+    """The cycle rotates tokens, so the hook must fire once it returns."""
+    from conso.ops.scheduler import DailyLoop, LoopConfig
+
+    loop = DailyLoop.__new__(DailyLoop)          # skip __init__ (needs settings)
+    loop.store = _StubStore(workspace / "data")
+    loop.config = LoopConfig(backup_keep=5)
+    loop.logger = None
+
+    loop._snapshot()
+
+    assert _families(workspace)["accounts.json"] == 1
+
+
+def test_loop_snapshot_can_be_disabled(workspace):
+    from conso.ops.scheduler import DailyLoop, LoopConfig
+
+    loop = DailyLoop.__new__(DailyLoop)
+    loop.store = _StubStore(workspace / "data")
+    loop.config = LoopConfig(backup_keep=0)
+    loop.logger = None
+
+    loop._snapshot()
+
+    assert not (workspace / "backups").exists()
+
+
+def test_loop_snapshot_failure_never_raises(workspace):
+    """Insurance must not be able to break the run it is protecting."""
+    from conso.ops.scheduler import DailyLoop, LoopConfig
+
+    loop = DailyLoop.__new__(DailyLoop)
+    loop.store = _StubStore(workspace / "missing")   # no such dir
+    loop.config = LoopConfig(backup_keep=5)
+    loop.logger = None
+
+    loop._snapshot()          # must swallow the FileNotFoundError
+
+
+# --- gitignore guards -------------------------------------------------------
 
 def test_backup_dir_is_gitignored():
     """A backup holds the same credentials as data/, so it must stay untracked."""

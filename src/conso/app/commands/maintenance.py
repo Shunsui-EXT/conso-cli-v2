@@ -308,39 +308,12 @@ def backup(
     the OTP path for every account, and the password is not recoverable at all.
     Copies land in ``backups/`` (gitignored — they hold the same credentials).
     """
-    import shutil
-    from pathlib import Path
+    from ...ops.backup import snapshot
 
     settings = Settings.from_env()
-    data_dir = Path(settings.data_dir)
-    if not data_dir.is_dir():
-        ui.error(f"backup: no {data_dir}/ directory yet — nothing to copy")
-        raise typer.Exit(1)
-
-    sources = [p for p in sorted(data_dir.iterdir()) if p.is_file()]
-    if not sources:
-        ui.error(f"backup: {data_dir}/ is empty — nothing to copy")
-        raise typer.Exit(1)
-
-    out_dir = Path("backups")
-    out_dir.mkdir(exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    copied = 0
-    for src in sources:
-        shutil.copy2(src, out_dir / f"{src.stem}-{stamp}{src.suffix}")
-        copied += 1
-
-    # Prune oldest per family so the dir cannot grow without bound. The family
-    # key keeps the extension: `accounts.json` and `accounts.csv` are different
-    # files, and grouping them by stem alone would prune one of each pair away.
-    # `keep` counts copies of the SAME file, which is what an operator expects.
-    pruned = 0
-    families = {f"{p.stem}-*{p.suffix}" for p in sources}
-    for pattern in families:
-        family = sorted(out_dir.glob(pattern), key=lambda p: p.stat().st_mtime)
-        for old in family[:-keep] if keep > 0 else []:
-            old.unlink()
-            pruned += 1
-
-    ui.log(f"backup: {copied} file(s) -> {out_dir}/ ({stamp})"
-           + (f", pruned {pruned} old" if pruned else ""), level="ok")
+    try:
+        snapshot(settings.data_dir, keep=keep, logger=_log)
+    except FileNotFoundError as exc:
+        ui.error(f"backup: {exc} — nothing to copy")
+        raise typer.Exit(1) from exc
+    ui.log("backup: done", level="ok")

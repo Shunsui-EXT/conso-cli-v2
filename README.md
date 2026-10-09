@@ -187,6 +187,7 @@ Every command is `python main.py <command>` (or `conso <command>` after
 | `doctor` | Report the solver chain, browser readiness, and whether the core is browser-free |
 | `report` | Headless status (`--fmt table\|json\|csv`, `--refresh`) |
 | `pipeline` | One-shot chain: `--register N --earn --loop --only-new --workers N` |
+| `backup` | Snapshot `data/` into `backups/` (`--keep N` copies per file) |
 | `notify` | Send a Telegram test message (verifies bot token + chat id) |
 
 ---
@@ -209,6 +210,15 @@ python main.py farm --turns 5
 
 ```bash
 python main.py loop --once
+```
+
+Every cycle **snapshots the store to `backups/`** once it finishes (that is the
+moment the rotated refresh tokens first exist). `--backup-keep N` sets how many
+copies of each file are kept; `0` turns it off. To snapshot by hand:
+
+```bash
+python main.py backup              # keep the last 20 copies per file
+python main.py backup --keep 50
 ```
 
 **Live status polled from the backend:**

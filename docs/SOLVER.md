@@ -146,7 +146,7 @@ exits through its own residential IP.
 | `CAPTCHA_PROVIDER` value | Implementation | Requirement |
 |---|---|---|
 | `internal` (alias `cloak`) | `cloak/turnstile.py` — CloakBrowser (stealth Chromium) | `pip install cloakbrowser` + `python -m playwright install chromium` |
-| `camoufox` | `camoufox.py` — Camoufox (stealth Firefox) | `camoufox[geoip]>=0.4.0` + `playwright==1.60` + `python -m camoufox fetch` |
+| `camoufox` | `camoufox.py` — Camoufox (stealth Firefox) | `camoufox[geoip]>=0.4.0` + `playwright==1.60` + `python -m camoufox set official/stable/152.0.4-beta.28` |
 | `capsolver` | `managed.py` — pure-HTTP Capsolver client (`CAPSOLVER_MODE=sdk` selects the official SDK) | `CAPSOLVER_API_KEY` |
 | `2captcha` | `managed.py` — 2Captcha HTTP client | `TWOCAPTCHA_API_KEY` |
 | `manual` | `managed.py` — operator pastes a token | `CAPTCHA_TOKEN` |
@@ -217,14 +217,22 @@ python scripts/bench_solver.py --only internal,camoufox --runs 5
 ## 6. Setup scripts
 
 ```bash
-bash scripts/setup_camoufox.sh   # camoufox[geoip] + playwright==1.60 + browser fetch + launch check
+bash scripts/setup_all.sh        # everything at once: venv, deps, solver, browser, .env, pre-flight
+bash scripts/setup_camoufox.sh   # camoufox[geoip] + playwright==1.60 + pinned browser fetch + launch check
 bash scripts/setup_cloak.sh      # pip install cloakbrowser + playwright install chromium + import check
 ```
 
-`setup_camoufox.sh` pins `playwright==1.60` deliberately: Camoufox's fetched
-browser build and the Playwright version must match, and 1.61+ re-downloads on
-every launch (and hangs). Both scripts finish by telling you to run
-`python main.py solve` as a sanity check.
+`setup_all.sh` is the entry point for a fresh clone: it runs the steps below in
+order and skips whatever is already done, so re-running it is cheap. It also
+pins the browser build — a bare `python -m camoufox fetch` installs the LATEST
+build, which `playwright==1.60` cannot drive (every launch re-downloads and
+hangs).
+
+Both `setup_camoufox.sh` and `setup_all.sh` pin `playwright==1.60` and the
+`official/stable/152.0.4-beta.28` build deliberately: the fetched browser build
+and the Playwright version must match, and 1.61+ re-downloads on every launch
+(and hangs). The scripts finish by telling you to run `python main.py solve` as
+a sanity check.
 
 `setup_cloak.sh` prints the NOTICE warning again on purpose — the cloak
 subpackage has no upstream license (section 1).

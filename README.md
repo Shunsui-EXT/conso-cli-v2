@@ -378,6 +378,7 @@ license warning for the cloak port: [`docs/SOLVER.md`](docs/SOLVER.md).
 
 | Script | Purpose |
 |---|---|
+| `scripts/setup_all.sh` | **One-shot setup** — venv, deps, solver, pinned browser, `.env`, pre-flight. Start here. |
 | `scripts/setup_camoufox.sh` | Install + fetch the Camoufox stealth browser, verify it launches |
 | `scripts/setup_cloak.sh` | Install `cloakbrowser` + Chromium, verify the import, print the NOTICE warning |
 | `scripts/install_cron.sh` | Install/remove the daily `loop --once` cron job (idempotent, marker comment) |

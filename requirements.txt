@@ -1,0 +1,19 @@
+# Runtime dependencies for conso-cli (keep in sync with pyproject.toml).
+tiktoken>=0.7.0          # o200k_base tokenizer — the zap economy is token-driven
+curl_cffi>=0.7.0         # TLS/JA3 impersonation for the Supabase + conso.xyz calls
+python-dotenv>=1.0.0     # .env loading
+rich>=13.7.0             # CLI output: tables, live monitor panel
+typer>=0.12.0            # command dispatch
+httpx>=0.27.0            # plain HTTP for the Telegram notify path
+
+# --- optional captcha solver backends ---------------------------------------
+# The browser solvers are OPTIONAL EXTRAS, not runtime requirements: the CLI
+# imports fine without them and only fails if you actually select a browser
+# provider in CAPTCHA_PROVIDER.
+#
+#   pip install -e '.[solver-camoufox]'   # stealth Firefox (production-proven)
+#     -> or: bash scripts/setup_camoufox.sh
+#   pip install -e '.[solver-cloak]'      # in-process port of the upstream
+#     -> or: bash scripts/setup_cloak.sh    captcha-solver (see NOTICE.md)
+#
+# The managed APIs (capsolver / 2captcha) need no extra package.
